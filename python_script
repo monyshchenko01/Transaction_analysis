@@ -1,0 +1,127 @@
+import mysql.connector
+from faker import Faker
+from dotenv import load_dotenv
+import random
+
+load_dotenv()
+
+HOST = 'localhost'
+USER = 'root'
+PASSWORD = '#####'
+DATABASE = '#####'
+
+connection = mysql.connector.connect(
+    host=HOST,
+    user=USER,
+    password=PASSWORD,
+    database=DATABASE
+)
+
+cursor = connection.cursor()
+fake = Faker()
+
+card_brands = [
+    'Visa',
+    'MasterCard',
+    'American Express'
+]
+
+print("Inserting into Currencies...")
+currency_insert_query = """
+    INSERT INTO Currencies (iso_code) 
+    VALUES (%s)
+"""
+currencies = [
+    (fake.unique.currency_code())
+    for _ in range(100)
+]
+cursor.executemany(currency_insert_query, currencies)
+connection.commit()
+print("Inserted into Currencies.")
+
+currency_select_query = "SELECT id FROM Currencies"
+cursor.execute(currency_select_query)
+currency_ids = [row[0] for row in cursor.fetchall()]
+
+print("Inserting into Psp...")
+psp_insert_query = """
+    INSERT INTO Psp (psp_merchant_id, name) 
+    VALUES (%s, %s)
+"""
+psp_data = [
+    (str(fake.uuid4()), fake.company())
+    for _ in range(20)
+]
+cursor.executemany(psp_insert_query, psp_data)
+connection.commit()
+print("Inserted into Psp.")
+
+print("Inserting into Payment_credentials...")
+payment_credentials_insert_query = """
+    INSERT INTO Payment_credentials (bin_country, bin, card_brand) 
+    VALUES (%s, %s, %s)
+"""
+payment_credentials_data = [
+    (fake.country(),
+     fake.random_int(min=100000, max=999999),
+     random.choice(card_brands))
+    for _ in range(100)
+]
+cursor.executemany(payment_credentials_insert_query, payment_credentials_data)
+connection.commit()
+print("Inserted into Payment_credentials.")
+
+print("Inserting into transactions...")
+transactions_insert_query = """
+    INSERT INTO transactions (psp_id, amount, currency_id, payment_credentials_id, status) 
+    VALUES (%s, %s, %s, %s, %s)
+"""
+transactions_data = [
+    (random.randint(1, 20),
+     fake.random_number(digits=5),
+     random.choice(currency_ids),
+     random.randint(1, 100),
+     random.choice(['success', 'failed', 'pending']))
+    for _ in range(100000)
+]
+cursor.executemany(transactions_insert_query, transactions_data)
+connection.commit()
+print("Inserted into transactions.")
+
+print("Inserting into refunds...")
+refunds_insert_query = """
+    INSERT INTO refunds (psp_id, amount, currency_id, payment_credentials_id, refund_status) 
+    VALUES (%s, %s, %s, %s, %s)
+"""
+refunds_data = [
+    (random.randint(1, 20),
+     fake.random_number(digits=5),
+     random.choice(currency_ids),
+     random.randint(1, 100),
+     random.choice(['successful', 'failed']))
+    for _ in range(50000)
+]
+cursor.executemany(refunds_insert_query, refunds_data)
+connection.commit()
+print("Inserted into refunds.")
+
+print("Inserting into chargebacks...")
+chargebacks_insert_query = """
+    INSERT INTO chargebacks (psp_id, amount, currency_id, payment_credentials_id, chb_status) 
+    VALUES (%s, %s, %s, %s, %s)
+"""
+chargebacks_data = [
+    (random.randint(1, 20),
+     fake.random_number(digits=5),
+     random.choice(currency_ids),
+     random.randint(1, 100),
+     random.choice(['initiated', 'completed']))
+    for _ in range(300)
+]
+cursor.executemany(chargebacks_insert_query, chargebacks_data)
+connection.commit()
+print("Inserted into chargebacks.")
+
+cursor.close()
+connection.close()
+print("Data insertion complete.")
